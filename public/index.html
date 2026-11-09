@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Event System</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f6ff; margin: 0; padding: 20px; }
+    h1 { text-align: center; color: #2d3436; }
+    .container { max-width: 1000px; margin: auto; display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+    .events { flex: 2; min-width: 300px; }
+    .event-card { background: white; padding: 20px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .event-card h3 { margin: 0 0 5px 0; color: #6c5ce7; }
+    .badge { background: #dfe6e9; padding: 4px 8px; border-radius: 20px; font-size: 12px; }
+    
+    .register-form {
+      flex: 1; min-width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      height: fit-content;
+      position: sticky; top: 20px;
+    }
+    .register-form input, .register-form select {
+      padding: 12px; border-radius: 8px; border: 1px solid #ccc; width: 100%; box-sizing: border-box;
+    }
+    .register-form button {
+      background: #6c5ce7; color: white; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;
+    }
+    .register-form button:hover { background: #4834d4; }
+    #myRegs { margin-top: 20px; background: white; padding: 15px; border-radius: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Tech Event Registration - Task 2</h1>
+  <div class="container">
+    <div class="events">
+      <h2>Available Events</h2>
+      <div id="eventList"></div>
+      <div id="myRegs"></div>
+    </div>
+
+    <div class="register-form">
+      <h3>Register Now</h3>
+      <input id="name" placeholder="Your Full Name">
+      <input id="email" placeholder="Your Email (to manage bookings)">
+      <select id="eventId"></select>
+      <button onclick="register()">Register</button>
+      <button onclick="viewMyRegs()" style="background:#00b894;">View My Registrations</button>
+      <p id="msg"></p>
+    </div>
+  </div>
+
+<script>
+  async function loadEvents(){
+    const res = await fetch('/api/events');
+    const events = await res.json();
+    const list = document.getElementById('eventList');
+    const select = document.getElementById('eventId');
+    list.innerHTML = ''; select.innerHTML = '';
+    events.forEach(e => {
+      list.innerHTML += `<div class="event-card"><h3>${e.title}</h3><p>${e.description}</p><p><b>Date:</b> ${e.date} | <b>Venue:</b> ${e.venue}</p><span class="badge">${e.available_slots}/${e.total_slots} slots left</span></div>`;
+      select.innerHTML += `<option value="${e.id}">${e.title}</option>`;
+    });
+  }
+  async function register(){
+    const data = { name: document.getElementById('name').value, email: document.getElementById('email').value, event_id: document.getElementById('eventId').value };
+    const res = await fetch('/api/registrations', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
+    const result = await res.json();
+    document.getElementById('msg').innerText = result.message || result.error;
+    loadEvents();
+  }
+  async function viewMyRegs(){
+    const email = document.getElementById('email').value;
+    if(!email) return alert("Enter your email first");
+    const res = await fetch('/api/registrations/'+email);
+    const regs = await res.json();
+    let html = `<h3>My Registrations (${email})</h3>`;
+    if(regs.length===0) html+="<p>No registrations</p>";
+    regs.forEach(r => { html+=`<p>${r.title} - ${r.date} <button onclick="cancelReg(${r.regId})">Cancel</button></p>` });
+    document.getElementById('myRegs').innerHTML = html;
+  }
+  async function cancelReg(id){
+    await fetch('/api/registrations/'+id, {method:'DELETE'});
+    viewMyRegs(); loadEvents();
+  }
+  loadEvents();
+</script>
+</body>
+</html>
